@@ -1,8 +1,8 @@
 """Flask app for Notes"""
 
 from flask import Flask, request, redirect, render_template, jsonify, flash, session
-from models import db, connect_db, User
-from forms import AddUserForm, LogInForm
+from models import db, connect_db, User, Note
+from forms import AddUserForm, LogInForm, NoteForm
 from sqlalchemy.exc import IntegrityError
 
 app = Flask(__name__)
@@ -45,7 +45,7 @@ def register_user():
                 db.session.commit()
                 session["cur_user"] = user.username
             
-                return redirect('/secret')
+                return redirect(f'/users/{user.username}')
 
             except IntegrityError:
                 flash("Username/email already taken")
@@ -107,17 +107,17 @@ def delete_user(username):
 
 
 @app.route('/users/<username>/notes/add', methods = ["GET", "POST"])
-def add_new_note():
+def add_new_note(username):
     """Shows/processes form for adding new note"""
-    form = LogInForm()
+    form = NoteForm()
 
     if request.method == "POST":
         if form.validate_on_submit():
             
-            user = User.authenticate_user(form.username.data, form.password.data)
-            if user:
-                session["cur_user"] = user.username
+            note = Note(title=form.title.data, content=form.content.data, owner=username)
+            db.session.add(note)
+            db.session.commit()
 
-            return redirect(f'/users/{user.username}') 
+            return redirect(f'/users/{username}') 
 
-    return render_template("log_in_form.html", form=form)
+    return render_template("note_form.html", form=form, username=username)
