@@ -15,13 +15,26 @@ app.config['SECRET_KEY'] = 'youllneverguess'
 connect_db(app)
 db.create_all()
 
-"""data = {
-        "id" : self.id,
-        "flavor" : self.flavor,
-        "size" : self.size,
-        "rating" : self.rating,
-        "image" : self.image
-        } """
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+def check_incorrect_user(username):
+    user = User.query.get(session.get('cur_user'))
+    if session.get('cur_user') == username or user.is_admin:
+        return False
+    flash("Please log in to access this page!")
+    return True
+
+def check_already_logged_in():
+    return session.get('cur_user')
+
+@app.before_first_request
+def add_admin():
+    if not User.query.get('c'):
+        admin = User.create_admin()
+        db.session.add(admin)
+        db.session.commit()
 
 
 @app.route("/")
@@ -29,11 +42,14 @@ def index():
     """ Loads Home Page """
    
     return redirect('/register')
+    admin = create
 
 
 @app.route("/register", methods=['GET', 'POST'])
 def register_user():
     """ Loads Home Page """
+    if check_already_logged_in():
+        return redirect(f"/users/{session['cur_user']}")
     form = AddUserForm()
     if request.method == "POST":
         if form.validate_on_submit():
@@ -41,6 +57,7 @@ def register_user():
             # Is this the best way to check for duplicate user?
             try:
                 user = User.register_user(form)
+                # error gets thrown after add/commit
                 db.session.add(user)
                 db.session.commit()
                 session["cur_user"] = user.username
@@ -57,6 +74,8 @@ def register_user():
 @app.route('/login', methods = ["GET", "POST"])
 def log_in():
     """Displays log in page"""
+    if check_already_logged_in():
+        return redirect(f"/users/{session['cur_user']}")
     form = LogInForm()
 
     if request.method == "POST":
@@ -67,8 +86,10 @@ def log_in():
                 session["cur_user"] = user.username
 
             return redirect(f'/users/{user.username}') 
-
+        
     return render_template("log_in_form.html", form=form)
+
+
 
 
 @app.route('/logout', methods = ["POST"])
@@ -79,12 +100,12 @@ def log_out():
 
 
 @app.route('/users/<username>')
-def secret_page(username):
+def show_user_page(username):
     """Secret page for only logged in users"""
-
-    if "cur_user" not in session:
-         flash("Please log in to access this page!")
-         return redirect('/login')
+    
+    # need to check this in buried paths as well
+    if check_incorrect_user(username):
+        return redirect('/login')
     
     user = User.query.get_or_404(username)
 
@@ -93,6 +114,9 @@ def secret_page(username):
 @app.route('/users/<username>/delete', methods = ["POST"])
 def delete_user(username):
     """Deletes user and their notes"""
+
+    if check_incorrect_user(username):
+        return redirect('/login')
 
     user = User.query.get_or_404(username)
     for note in user.notes:
@@ -109,15 +133,48 @@ def delete_user(username):
 @app.route('/users/<username>/notes/add', methods = ["GET", "POST"])
 def add_new_note(username):
     """Shows/processes form for adding new note"""
+
+    if check_incorrect_user(username):
+        return redirect('/login')
+
     form = NoteForm()
 
-    if request.method == "POST":
-        if form.validate_on_submit():
-            
-            note = Note(title=form.title.data, content=form.content.data, owner=username)
-            db.session.add(note)
-            db.session.commit()
+    if form.validate_on_submit():
+        
+        note = Note(title=form.title.data, content=form.content.data, owner=username)
+        db.session.add(note)
+        db.session.commit()
 
-            return redirect(f'/users/{username}') 
+        return redirect(f'/users/{username}') 
 
     return render_template("note_form.html", form=form, username=username)
+
+@app.route('/notes/<int:note_id>/update', methods = ["GET", "POST"])
+def edit_note(note_id):
+    """Note page"""
+    
+    note = Note.query.get_or_404(note_id)
+    if check_incorrect_user(note.user.username):
+        return redirect('/login')
+    form = NoteForm(obj=note)
+    
+    if form.validate_on_submit():
+        note.title = form.title.data
+        note.content = form.content.data
+        db.session.commit()
+        return redirect(f"/users/{note.user.username}")
+
+    return render_template("note_edit.html", note_id=note_id, form=form)
+
+@app.route('/notes/<int:note_id>/delete', methods=["POST"])
+def delete_note(note_id):
+    """Delete note"""
+
+    note = Note.query.get_or_404(note_id)
+    if check_incorrect_user(note.user.username):
+        return redirect('/login')
+
+    username = note.user.username
+    db.session.delete(note)
+    db.session.commit()
+    return redirect(f"/users/{username}")

@@ -23,13 +23,23 @@ class User(db.Model):
     email = db.Column(db.String(50), nullable=False, unique=True)
     first_name = db.Column(db.String(30), nullable=False)
     last_name = db.Column(db.String(30), nullable=False)
-
+    is_admin = db.Column(db.Boolean, nullable=False, default=False)
 
     @classmethod
+    def create_admin(cls):
+        password = '1234'
+        hashed = bcrypt.generate_password_hash(password).decode('utf8')
+        return User(username='c', password=hashed, email='c@c.com',  
+                first_name='c',  last_name='c', is_admin=True)
+        
+
+    @classmethod
+    # more standard to take in the individual fields
     def register_user(cls, form):
         
         hashed = bcrypt.generate_password_hash(form.password.data).decode('utf8')
         #catch duplicate username
+
 
           
         return cls(username=form.username.data, password=hashed, email=form.email.data,  
