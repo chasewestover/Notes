@@ -11,6 +11,18 @@
 
   <h2>Notes</h2>
     <ul>
-      
+      {% for note in user.notes %}
+        <li>
+          <a href="/notes/{{note.id}}/update"><i class="far fa-edit"></i></a>
+          <a href="/notes/{{note.id}}/delete"><i class="fas fa-trash"></i></a>
+            {{ note.title }}: {{ note.content }} 
+        </li>
+      {% endfor %}
     </ul>
+
+    <a href="/users/{{user.username}}/notes/add" type="button" class="btn btn-primary">Add Note</a>
+    <!-- Is there a way to POST in a button/a tag? -->
+    <form action="/users/{{user.username}}/delete" method="POST">
+      <button type="submit" class="btn btn-danger">Delete User</button>
+    </form>
   {% endblock %}

@@ -37,7 +37,7 @@ def register_user():
     form = AddUserForm()
     if request.method == "POST":
         if form.validate_on_submit():
-                      
+
             # Is this the best way to check for duplicate user?
             try:
                 user = User.register_user(form)
@@ -71,6 +71,13 @@ def log_in():
     return render_template("log_in_form.html", form=form)
 
 
+@app.route('/logout', methods = ["POST"])
+def log_out():
+    session.pop("cur_user", None)
+    flash("You are logged out!")
+    return redirect('/')
+
+
 @app.route('/users/<username>')
 def secret_page(username):
     """Secret page for only logged in users"""
@@ -83,9 +90,34 @@ def secret_page(username):
 
     return render_template("user_page.html", user=user)
 
+@app.route('/users/<username>/delete', methods = ["POST"])
+def delete_user(username):
+    """Deletes user and their notes"""
 
-@app.route('/logout', methods = ["POST"])
-def log_out():
+    user = User.query.get_or_404(username)
+    for note in user.notes:
+        db.session.delete(note)
+    db.session.delete(user)
+    db.session.commit()
+
     session.pop("cur_user", None)
-    flash("You are logged out!")
+    flash("User deleted!")
+
     return redirect('/')
+
+
+@app.route('/users/<username>/notes/add', methods = ["GET", "POST"])
+def add_new_note():
+    """Shows/processes form for adding new note"""
+    form = LogInForm()
+
+    if request.method == "POST":
+        if form.validate_on_submit():
+            
+            user = User.authenticate_user(form.username.data, form.password.data)
+            if user:
+                session["cur_user"] = user.username
+
+            return redirect(f'/users/{user.username}') 
+
+    return render_template("log_in_form.html", form=form)
