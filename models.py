@@ -26,12 +26,29 @@ class User(db.Model):
 
     @classmethod
     def register_user(cls, form):
+        
         hashed = bcrypt.generate_password_hash(form.password.data).decode('utf8')
+        #catch duplicate username
 
-        # return instance of user w/username and hashed pwd
+          
         return cls(username=form.username.data, password=hashed, email=form.email.data,  
-            first_name=form.first_name.data,  last_name=form.last_name.data)
+                first_name=form.first_name.data,  last_name=form.last_name.data)
 
     @classmethod
     def authenticate_user(cls, username, password):
-        pass
+        
+        user = User.query.filter_by(username=username).first()
+
+        if user and bcrypt.check_password_hash(user.password, password):
+            return user
+        
+        return False
+
+
+class Note(db.Model):
+    __tablename__ = 'notes'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    title = db.Column(db.String(100), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    owner = db.Column(db.String(20), db.ForeignKey('User.username'))

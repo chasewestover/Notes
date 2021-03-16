@@ -2,7 +2,8 @@
 
 from flask import Flask, request, redirect, render_template, jsonify, flash, session
 from models import db, connect_db, User
-from forms import AddUserForm
+from forms import AddUserForm, LogInForm
+from sqlalchemy.exc import IntegrityError
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///notes'
@@ -22,11 +23,13 @@ db.create_all()
         "image" : self.image
         } """
 
+
 @app.route("/")
 def index():
     """ Loads Home Page """
    
     return redirect('/register')
+
 
 @app.route("/register", methods=['GET', 'POST'])
 def register_user():
@@ -34,14 +37,55 @@ def register_user():
     form = AddUserForm()
     if request.method == "POST":
         if form.validate_on_submit():
-            username = form.username.data
-            if User.query.filter_by(username=username).all():
-                flash("Username already taken")
+                      
+            # Is this the best way to check for duplicate user?
+            try:
+                user = User.register_user(form)
+                db.session.add(user)
+                db.session.commit()
+                session["cur_user"] = user.username
+            
+                return redirect('/secret')
+
+            except IntegrityError:
+                flash("Username/email already taken")
                 return redirect('/register')
-            user = User.register_user(form)
-            db.session.add(user)
-            db.session.commit()
-            session["cur_user"] = user.username
-            return redirect('/secret')
+
     return render_template("user_form.html", form=form)
 
+
+@app.route('/login', methods = ["GET", "POST"])
+def log_in():
+    """Displays log in page"""
+    form = LogInForm()
+
+    if request.method == "POST":
+        if form.validate_on_submit():
+            
+            user = User.authenticate_user(form.username.data, form.password.data)
+            if user:
+                session["cur_user"] = user.username
+
+            return redirect(f'/users/{user.username}') 
+
+    return render_template("log_in_form.html", form=form)
+
+
+@app.route('/users/<username>')
+def secret_page(username):
+    """Secret page for only logged in users"""
+
+    if "cur_user" not in session:
+         flash("Please log in to access this page!")
+         return redirect('/login')
+    
+    user = User.query.get_or_404(username)
+
+    return render_template("user_page.html", user=user)
+
+
+@app.route('/logout', methods = ["POST"])
+def log_out():
+    session.pop("cur_user", None)
+    flash("You are logged out!")
+    return redirect('/')

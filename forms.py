@@ -8,8 +8,17 @@ from email_validator import validate_email
 class AddUserForm(FlaskForm):
     """Form for adding users."""
 
-    username = StringField("Username:", validators=[InputRequired(), Length(0, 20)])
-    password = PasswordField("Password:", validators=[InputRequired(), Length(0,30)])
-    email = StringField("Email:", validators=[InputRequired(), Length(0, 50), Email()])
-    first_name = StringField("First:", validators=[InputRequired(), Length(0, 30)])
-    last_name = StringField("Last:", validators=[InputRequired(), Length(0, 30)])
+    username = StringField("Username:", validators=[InputRequired(), Length(1, 20)])
+    password = PasswordField("Password:", validators=[InputRequired(), Length(4, 30)])
+    email = StringField("Email:", validators=[InputRequired(), Length(3, 50), Email()])
+    first_name = StringField("First:", validators=[InputRequired(), Length(1, 30)])
+    last_name = StringField("Last:", validators=[InputRequired(), Length(1, 30)])
+
+
+class LogInForm(FlaskForm):
+    """Form for adding users."""
+
+    username = StringField("Username:", validators=[InputRequired(), Length(1, 20)])
+    password = PasswordField("Password:", validators=[InputRequired(), Length(4,30)])
+    
+    
